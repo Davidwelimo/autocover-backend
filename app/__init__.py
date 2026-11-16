@@ -25,6 +25,10 @@ def create_app():
   app.register_blueprint(api_bp, url_prefix='/api/v1')
   app.register_blueprint(service_bp, url_prefix='/api/v1')
 
+  # Create database tables automatically on startup
+  with app.app_context():
+    db.create_all()
+
   @app.route('/')
   def home():
     return render_template('index.html')
