@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoCover - Motor Insurance & Sinking Fund</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --primary: #38bdf8; --success: #10b981; --text: #f8fafc; --border: #334155; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 650px; margin: 30px auto; background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
+        h1 { text-align: center; color: var(--primary); margin-top: 0; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 25px; }
+        .tab { flex: 1; padding: 10px; background: var(--border); border: none; color: white; cursor: pointer; border-radius: 6px; font-weight: bold; transition: background 0.2s; }
+        .tab.active { background: #0284c7; }
+        .section { display: none; }
+        .section.active { display: block; }
+        label { display: block; margin-top: 12px; font-size: 14px; color: #cbd5e1; }
+        input, select { width: 100%; padding: 10px 12px; margin-top: 5px; background: var(--bg); border: 1px solid var(--border); color: white; border-radius: 6px; box-sizing: border-box; }
+        button.submit { width: 100%; padding: 12px; background: var(--success); border: none; color: white; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-top: 20px; }
+        button.submit:hover { background: #059669; }
+        button.check { background: var(--primary); color: #0f172a; }
+        #output { margin-top: 20px; padding: 15px; background: var(--bg); border-radius: 6px; white-space: pre-wrap; display: none; border-left: 4px solid var(--primary); font-family: monospace; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AutoCover Portal</h1>
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('register', this)">Register Vehicle</button>
+            <button class="tab" onclick="showTab('autopay', this)">Trigger Autopay</button>
+            <button class="tab" onclick="showTab('health', this)">System Status</button>
+        </div>
+
+        <!-- Vehicle Registration -->
+        <div id="register" class="section active">
+            <h3>Vehicle & Sinking Wallet Registration</h3>
+            <label>Full Name</label><input type="text" id="full_name" placeholder="John Doe">
+            <label>Phone Number</label><input type="text" id="phone_number" placeholder="2547XXXXXXXX">
+            <label>Email Address</label><input type="email" id="email" placeholder="john@example.com">
+            <label>National ID</label><input type="text" id="national_id" placeholder="12345678">
+            <label>KRA PIN</label><input type="text" id="kra_pin" placeholder="A000000000X">
+            <label>Vehicle Registration Number</label><input type="text" id="reg_number" placeholder="KAA 001A">
+            <label>Chassis Number</label><input type="text" id="chassis_no" placeholder="CHASSIS12345">
+            <label>Make & Model</label><input type="text" id="make_model" placeholder="Toyota Corolla">
+            <label>Cover Type</label>
+            <select id="cover_type">
+                <option value="Comprehensive">Comprehensive</option>
+                <option value="Third Party">Third Party</option>
+            </select>
+            <label>Current Policy Expiry Date</label><input type="date" id="expiry_date">
+            <label>Target Premium (KES)</label><input type="number" id="target_premium" placeholder="45000">
+            <label>Payday Date (Day of Month)</label><input type="number" id="payday_date" value="25" min="1" max="31">
+            <button class="submit" onclick="registerVehicle()">Complete Registration</button>
+        </div>
+
+        <!-- Trigger Autopay -->
+        <div id="autopay" class="section">
+            <h3>Test M-Pesa Autopay / STK Push</h3>
+            <label>Phone Number</label><input type="text" id="ap_phone" placeholder="2547XXXXXXXX">
+            <label>Amount (KES)</label><input type="number" id="ap_amount" placeholder="3750">
+            <label>Vehicle Registration</label><input type="text" id="ap_reg" placeholder="KAA 001A">
+            <button class="submit" onclick="triggerAutopay()">Trigger STK Push</button>
+        </div>
+
+        <!-- System Health -->
+        <div id="health" class="section">
+            <h3>Backend Diagnostics</h3>
+            <button class="submit check" onclick="checkHealth()">Run Health Check</button>
+        </div>
+
+        <div id="output"></div>
+    </div>
+
+    <script>
+        function showTab(id, btn) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            btn.classList.add('active');
+            document.getElementById('output').style.display = 'none';
+        }
+
+        async function handleRequest(url, payload, method = 'POST') {
+            const out = document.getElementById('output');
+            out.style.display = 'block';
+            out.textContent = 'Processing...';
+            try {
+                const options = { method, headers: { 'Content-Type': 'application/json' } };
+                if (payload) options.body = JSON.stringify(payload);
+                const res = await fetch(url, options);
+                const data = await res.json();
+                out.textContent = JSON.stringify(data, null, 2);
+            } catch (err) {
+                out.textContent = 'Error: ' + err.message;
+            }
+        }
+
+        function registerVehicle() {
+            handleRequest('/api/v1/vehicles/register', {
+                full_name: document.getElementById('full_name').value,
+                phone_number: document.getElementById('phone_number').value,
+                email: document.getElementById('email').value,
+                national_id: document.getElementById('national_id').value,
+                kra_pin: document.getElementById('kra_pin').value,
+                reg_number: document.getElementById('reg_number').value,
+                chassis_no: document.getElementById('chassis_no').value,
+                make_model: document.getElementById('make_model').value,
+                cover_type: document.getElementById('cover_type').value,
+                expiry_date: document.getElementById('expiry_date').value,
+                target_premium: document.getElementById('target_premium').value,
+                payday_date: document.getElementById('payday_date').value
+            });
+        }
+
+        function triggerAutopay() {
+            handleRequest('/api/v1/trigger-autopay', {
+                phone: document.getElementById('ap_phone').value,
+                amount: document.getElementById('ap_amount').value,
+                reg_number: document.getElementById('ap_reg').value
+            });
+        }
+
+        function checkHealth() {
+            handleRequest('/api/v1/health', null, 'GET');
+        }
+    </script>
+</body>
+</html>
