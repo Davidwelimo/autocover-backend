@@ -1,5 +1,5 @@
 from app.models import db
-from flask import Flask
+from flask import Flask, render_template
 from flask_migrate import Migrate
 
 migrate = Migrate()
@@ -27,6 +27,6 @@ def create_app():
 
   @app.route('/')
   def home():
-    return {'status': 'success', 'message': 'AutoCover Backend is live!'}, 200
+    return render_template('index.html')
 
   return app
