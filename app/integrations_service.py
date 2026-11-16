@@ -65,10 +65,7 @@ class AutoCoverIntegrationService:
     if not access_token:
       return {"success": False, "error": "Failed to authenticate with Daraja"}
 
-    # Format Timestamp: YYYYMMDDHHMMSS
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-
-    # Generate Password: Base64 encode (Shortcode + Passkey + Timestamp)
     raw_password = f"{self.business_shortcode}{self.passkey}{timestamp}"
     encoded_password = base64.b64encode(raw_password.encode()).decode("utf-8")
 
@@ -83,7 +80,7 @@ class AutoCoverIntegrationService:
         "Timestamp": timestamp,
         "TransactionType": "CustomerPayBillOnline",
         "Amount": int(amount),
-        "PartyA": phone_number,  # Format: 2547XXXXXXXX
+        "PartyA": phone_number,
         "PartyB": int(self.business_shortcode),
         "PhoneNumber": phone_number,
         "CallBackURL": os.getenv("DARAJA_CALLBACK_URL"),
@@ -115,29 +112,61 @@ class AutoCoverIntegrationService:
       return {"success": False, "error": str(e)}
 
   # ----------------------------------------------------
-  # 2. WHATSAPP CLOUD API (SEND PDF CERTIFICATE)
+  # 2. WHATSAPP CLOUD API (TEXT & PDF CERTIFICATE)
   # ----------------------------------------------------
+  def send_whatsapp_text_message(self, recipient_phone: str, message_body: str):
+    """Sends a standard WhatsApp text notification via Meta Cloud API."""
+    if not self.whatsapp_token or not self.phone_number_id:
+      return {"success": False, "error": "WhatsApp credentials not configured"}
+
+    messages_url = f"https://graph.facebook.com/{self.whatsapp_api_version}/{self.phone_number_id}/messages"
+    headers = {
+        "Authorization": f"Bearer {self.whatsapp_token}",
+        "Content-Type": "application/json",
+    }
+
+    # Format 07... or 01... to 254... if needed
+    clean_phone = recipient_phone.strip().lstrip("+")
+    if clean_phone.startswith("0"):
+      clean_phone = "254" + clean_phone[1:]
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": clean_phone,
+        "type": "text",
+        "text": {"body": message_body},
+    }
+
+    try:
+      response = requests.post(
+          messages_url, json=payload, headers=headers, timeout=30
+      )
+      response_data = response.json()
+
+      if response.status_code == 200 and "messages" in response_data:
+        return {"success": True, "message_id": response_data["messages"][0]["id"]}
+      else:
+        return {"success": False, "error": response_data}
+    except requests.exceptions.RequestException as e:
+      return {"success": False, "error": str(e)}
+
   def upload_media_to_whatsapp(self, file_path: str, mime_type: str = "application/pdf"):
     """Uploads a PDF document to Meta's media endpoint to obtain a media ID."""
     upload_url = f"https://graph.facebook.com/{self.whatsapp_api_version}/{self.phone_number_id}/media"
-    
-    headers = {
-        "Authorization": f"Bearer {self.whatsapp_token}"
-    }
-    
+    headers = {"Authorization": f"Bearer {self.whatsapp_token}"}
+
     try:
       with open(file_path, "rb") as file_to_upload:
         files = {
             "file": (os.path.basename(file_path), file_to_upload, mime_type)
         }
-        data = {
-            "messaging_product": "whatsapp",
-            "type": "document"
-        }
-        
-        response = requests.post(upload_url, headers=headers, data=data, files=files, timeout=60)
+        data = {"messaging_product": "whatsapp", "type": "document"}
+        response = requests.post(
+            upload_url, headers=headers, data=data, files=files, timeout=60
+        )
         response_data = response.json()
-        
+
         if response.status_code == 200 and "id" in response_data:
           return {"success": True, "media_id": response_data["id"]}
         else:
@@ -149,7 +178,6 @@ class AutoCoverIntegrationService:
       self, recipient_phone: str, pdf_file_path: str, vehicle_reg: str
   ):
     """Uploads the DMVIC PDF certificate and delivers it as an interactive WhatsApp document message."""
-    # Step 1: Upload the PDF to get a Meta Media ID
     upload_result = self.upload_media_to_whatsapp(pdf_file_path)
     if not upload_result["success"]:
       return {
@@ -165,9 +193,7 @@ class AutoCoverIntegrationService:
         " certificate."
     )
 
-    # Step 2: Send the document message via WhatsApp Messages API
     messages_url = f"https://graph.facebook.com/{self.whatsapp_api_version}/{self.phone_number_id}/messages"
-    
     headers = {
         "Authorization": f"Bearer {self.whatsapp_token}",
         "Content-Type": "application/json",
