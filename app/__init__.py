@@ -25,4 +25,8 @@ def create_app():
   app.register_blueprint(api_bp, url_prefix='/api/v1')
   app.register_blueprint(service_bp, url_prefix='/api/v1')
 
+  @app.route('/')
+  def home():
+    return {'status': 'success', 'message': 'AutoCover Backend is live!'}, 200
+
   return app
